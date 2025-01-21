@@ -1,0 +1,44 @@
+blueprint:
+  name: Cycle Scenes with Button
+  description: Cycle through multiple scenes when a button is pressed.
+  domain: automation
+  input:
+    button:
+      name: Button Entity
+      description: The button that will trigger the scene cycling.
+      selector:
+        entity:
+          domain: binary_sensor
+          device_class: button
+    scenes:
+      name: Scenes
+      description: List of scenes to cycle through. Supports any number of scenes.
+      selector:
+        entity:
+          domain: scene
+          multiple: true
+    scene_index:
+      name: Scene Index Helper
+      description: Input number to keep track of the current scene.
+      selector:
+        entity:
+          domain: input_number
+
+action:
+  - variables:
+      current_index: "{{ states(input.scene_index) | int }}"
+      scenes_list: "{{ input.scenes | list }}"
+      total_scenes: "{{ scenes_list | length }}"
+      next_index: "{{ (current_index + 1) % total_scenes }}"
+  
+  - service: scene.turn_on
+    target:
+      entity_id: "{{ scenes_list[next_index] }}"
+
+  - service: input_number.set_value
+    target:
+      entity_id: "{{ input.scene_index }}"
+    data:
+      value: "{{ next_index }}"
+
+mode: restart
