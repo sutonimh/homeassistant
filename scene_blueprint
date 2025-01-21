@@ -34,11 +34,11 @@ trigger:
 
 action:
   - variables:
-      current_index: "{{ states('!input scene_index') | int(0) }}"  # Ensure it defaults to 0
-      scenes_list: !input scenes  # Corrected input reference
+      current_index: "{{ states('!input scene_index') | int(0) }}"
+      scenes_list: !input scenes
       total_scenes: "{{ scenes_list | length }}"
       next_index: "{{ (current_index + 1) % total_scenes }}"
-
+  
   - service: scene.turn_on
     target:
       entity_id: "{{ scenes_list[next_index] }}"
