@@ -34,18 +34,21 @@ trigger:
 
 action:
   - variables:
-      current_index: "{{ states('!input scene_index') | int(default=0) }}"
+      scene_index_id: !input scene_index
+      current_index: "{{ states(scene_index_id) | int(default=0) }}"
       scenes_list: !input scenes
       total_scenes: "{{ scenes_list | length }}"
       next_index: "{{ (current_index + 1) % total_scenes }}"
-  
+
   - service: input_number.set_value
     target:
-      entity_id: !input scene_index
+      entity_id: "{{ scene_index_id }}"
     data:
       value: "{{ next_index }}"
-  
-  - delay: '00:00:01'  # Ensure state update propagates before turning on the scene
+
+  - wait_template: "{{ states(scene_index_id) | int == next_index }}"
+    timeout: "00:00:02"
+    continue_on_timeout: true
   
   - service: scene.turn_on
     target:
