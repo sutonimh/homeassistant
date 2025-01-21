@@ -1,11 +1,11 @@
 blueprint:
-  name: Cycle Scenes with Button
-  description: Cycle through multiple scenes when a button helper is pressed.
+  name: Cycle Scenes with Input Button
+  description: Cycle through multiple scenes when an input_button helper is pressed.
   domain: automation
   input:
     button:
-      name: Button Helper Entity
-      description: The button helper that will trigger the scene cycling. If not present, it will be created.
+      name: Input Button Helper Entity
+      description: The input_button helper that will trigger the scene cycling. If not present, it will be created.
       selector:
         entity:
           domain: input_button
@@ -24,21 +24,11 @@ blueprint:
           domain: input_number
 
 trigger:
-  - platform: event
-    event_type: call_service
-    event_data:
-      domain: input_button
-      service: press
-      service_data:
-        entity_id: !input button
+  - platform: state
+    entity_id: !input button
+    to: "pressed"
 
 action:
-  - service: input_button.create
-    data:
-      name: "Scene Cycle Button"
-      entity_id: input_button.scene_cycle_button
-    condition: "{{ states('input_button.scene_cycle_button') == 'unknown' }}"
-
   - variables:
       current_index: "{{ states(input.scene_index) | int }}"
       scenes_list: "{{ input.scenes | list }}"
