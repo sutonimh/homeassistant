@@ -8,7 +8,7 @@ blueprint:
       description: The button helper that will trigger the scene cycling. If not present, it will be created.
       selector:
         entity:
-          domain: button
+          domain: input_button
     scenes:
       name: Scenes
       description: List of scenes to cycle through. Supports any number of scenes.
@@ -27,18 +27,13 @@ trigger:
   - platform: event
     event_type: call_service
     event_data:
-      domain: button
+      domain: input_button
       service: press
       service_data:
         entity_id: !input button
 
 action:
-  - service: input_boolean.toggle
-    target:
-      entity_id: input_boolean.button_helper_created
-    condition: "{{ states('input_boolean.button_helper_created') == 'unknown' }}"
-
-  - service: button.create
+  - service: input_button.create
     data:
       name: "Scene Cycle Button"
       entity_id: input_button.scene_cycle_button
