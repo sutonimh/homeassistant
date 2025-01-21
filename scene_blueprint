@@ -1,17 +1,17 @@
 blueprint:
   name: Cycle Scenes with Input Button
-  description: Cycle through multiple scenes when an input_button helper is pressed.
+  description: Cycle through an unlimited number of scenes when an input_button helper is pressed.
   domain: automation
   input:
     button:
       name: Input Button Helper Entity
-      description: The input_button helper that will trigger the scene cycling. If not present, it will be created.
+      description: The input_button helper that will trigger the scene cycling.
       selector:
         entity:
           domain: input_button
     scenes:
       name: Scenes
-      description: List of scenes to cycle through. Supports any number of scenes.
+      description: List of scenes to cycle through. Supports infinite scenes.
       selector:
         entity:
           domain: scene
@@ -24,9 +24,13 @@ blueprint:
           domain: input_number
 
 trigger:
-  - platform: state
-    entity_id: !input button
-    to: "pressed"
+  - platform: event
+    event_type: call_service
+    event_data:
+      domain: input_button
+      service: press
+      service_data:
+        entity_id: !input button
 
 action:
   - variables:
