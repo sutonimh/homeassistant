@@ -17,16 +17,17 @@ blueprint:
         entity:
           domain: scene
           multiple: true
-    scene_index:
-      name: Scene Index Helper
-      description: Input number to keep track of the current scene.
-      selector:
-        entity:
-          domain: input_number
 
 action:
+  - service: input_number.set_value
+    target:
+      entity_id: input_number.scene_index
+    data:
+      value: 0
+    condition: "{{ states('input_number.scene_index') == 'unknown' }}"
+
   - variables:
-      current_index: "{{ states(input.scene_index) | int }}"
+      current_index: "{{ states('input_number.scene_index') | int }}"
       scenes_list: "{{ input.scenes | list }}"
       total_scenes: "{{ scenes_list | length }}"
       next_index: "{{ (current_index + 1) % total_scenes }}"
@@ -37,7 +38,7 @@ action:
 
   - service: input_number.set_value
     target:
-      entity_id: "{{ input.scene_index }}"
+      entity_id: input_number.scene_index
     data:
       value: "{{ next_index }}"
 
