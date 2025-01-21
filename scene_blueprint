@@ -1,15 +1,14 @@
 blueprint:
   name: Cycle Scenes with Button
-  description: Cycle through multiple scenes when a button is pressed.
+  description: Cycle through multiple scenes when a button helper is pressed.
   domain: automation
   input:
     button:
-      name: Button Entity
-      description: The button that will trigger the scene cycling.
+      name: Button Helper Entity
+      description: The button helper that will trigger the scene cycling. If not present, it will be created.
       selector:
         entity:
-          domain: binary_sensor
-          device_class: button
+          domain: button
     scenes:
       name: Scenes
       description: List of scenes to cycle through. Supports any number of scenes.
@@ -24,7 +23,27 @@ blueprint:
         entity:
           domain: input_number
 
+trigger:
+  - platform: event
+    event_type: call_service
+    event_data:
+      domain: button
+      service: press
+      service_data:
+        entity_id: !input button
+
 action:
+  - service: input_boolean.toggle
+    target:
+      entity_id: input_boolean.button_helper_created
+    condition: "{{ states('input_boolean.button_helper_created') == 'unknown' }}"
+
+  - service: button.create
+    data:
+      name: "Scene Cycle Button"
+      entity_id: input_button.scene_cycle_button
+    condition: "{{ states('input_button.scene_cycle_button') == 'unknown' }}"
+
   - variables:
       current_index: "{{ states(input.scene_index) | int }}"
       scenes_list: "{{ input.scenes | list }}"
