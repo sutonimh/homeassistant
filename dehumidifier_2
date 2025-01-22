@@ -1,5 +1,5 @@
 blueprint:
-  name: Dehumidifier Auto Control
+  name: Dehumidifier Control
   description: "Automatically turns dehumidifiers on and off based on humidity levels."
   domain: automation
   input:
