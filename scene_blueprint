@@ -1,79 +1,77 @@
 blueprint:
   name: Cycle Through Scenes with Button
-  description: Cycles through up to 5 scenes when a button helper is pressed.
+  description: Cycle through up to 5 scenes when a button helper is pressed.
   domain: automation
   input:
-    button_helper:
+    button_entity:
       name: Button Helper
-      description: The button helper to trigger scene cycling.
+      description: The button helper that triggers the scene cycling.
       selector:
         entity:
           domain: input_button
     scene_1:
       name: Scene 1
+      description: First scene in the cycle.
       selector:
         entity:
           domain: scene
     scene_2:
       name: Scene 2
+      description: Second scene in the cycle.
       selector:
         entity:
           domain: scene
+      default: ''
     scene_3:
-      name: Scene 3 (Optional)
-      default: ""
+      name: Scene 3
+      description: Third scene in the cycle (optional).
       selector:
         entity:
           domain: scene
+      default: ''
     scene_4:
-      name: Scene 4 (Optional)
-      default: ""
+      name: Scene 4
+      description: Fourth scene in the cycle (optional).
       selector:
         entity:
           domain: scene
+      default: ''
     scene_5:
-      name: Scene 5 (Optional)
-      default: ""
+      name: Scene 5
+      description: Fifth scene in the cycle (optional).
       selector:
         entity:
           domain: scene
-    scene_index_helper:
-      name: Scene Index Helper
-      description: An input_number helper to track the current scene index.
+      default: ''
+    cycle_counter:
+      name: Cycle Counter
+      description: Input number to track the scene cycle.
       selector:
         entity:
           domain: input_number
-
+  
 mode: restart
 
 trigger:
   - platform: state
-    entity_id: !input button_helper
-
-variables:
-  scenes:
-    - !input scene_1
-    - !input scene_2
-    - !input scene_3
-    - !input scene_4
-    - !input scene_5
-  scenes_filtered: "{{ scenes | select('string') | list if scenes | select('string') | list | count > 0 else [] }}"
-  scene_count: "{{ scenes_filtered | count }}"
+    entity_id: !input button_entity
 
 action:
   - variables:
-      current_scene_index: >-
-        {% set current = states(!input scene_index_helper) | int %}
-        {% if scene_count > 0 %}
-        {{ (current + 1) % scene_count }}
-        {% else %}
-        0
-        {% endif %}
-  - service: input_number.set_value
-    target:
-      entity_id: !input scene_index_helper
-    data:
-      value: "{{ current_scene_index }}"
+      scenes: >-
+        {{ [
+          input.scene_1, input.scene_2, input.scene_3, 
+          input.scene_4, input.scene_5] | select('string') | list }}
+      current_index: >-
+        {{ states[input.cycle_counter].state | int(0) }}
+      next_index: >-
+        {{ (current_index + 1) % scenes | length }}
+  
   - service: scene.turn_on
-    target:
-      entity_id: "{{ scenes_filtered[current_scene_index] }}"
+    data:
+      entity_id: "{{ scenes[next_index] }}"
+
+  - service: input_number.set_value
+    data:
+      entity_id: !input cycle_counter
+      value: "{{ next_index }}"
