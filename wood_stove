@@ -1,0 +1,105 @@
+blueprint:
+  name: Wood Stove State Tracker
+  description: Tracks the state of a wood stove based on temperature sensor input.
+  domain: automation
+  input:
+    temperature_sensor:
+      name: Temperature Sensor
+      description: The sensor measuring the wood stove temperature.
+      selector:
+        entity:
+          domain: sensor
+          device_class: temperature
+    warming_threshold:
+      name: Warming Threshold
+      description: Temperature at which the stove is considered warming up.
+      default: 100
+      selector:
+        number:
+          min: 50
+          max: 300
+          unit_of_measurement: "°C"
+    burning_threshold:
+      name: Burning Threshold
+      description: Temperature at which the stove is actively burning.
+      default: 250
+      selector:
+        number:
+          min: 100
+          max: 800
+          unit_of_measurement: "°C"
+    cooling_threshold:
+      name: Cooling Threshold
+      description: Temperature at which the stove is considered cooling down.
+      default: 75
+      selector:
+        number:
+          min: 30
+          max: 200
+          unit_of_measurement: "°C"
+    stove_state_helper:
+      name: Stove State Helper
+      description: An input_text or input_select to track the state.
+      selector:
+        entity:
+          domain: [input_text, input_select]
+
+mode: restart
+max_exceeded: silent
+
+trigger:
+  - platform: numeric_state
+    entity_id: !input temperature_sensor
+    above: !input warming_threshold
+    id: "warming_up"
+  - platform: numeric_state
+    entity_id: !input temperature_sensor
+    above: !input burning_threshold
+    id: "burning"
+  - platform: numeric_state
+    entity_id: !input temperature_sensor
+    below: !input cooling_threshold
+    id: "cooling_down"
+  - platform: numeric_state
+    entity_id: !input temperature_sensor
+    below: !input warming_threshold
+    id: "off"
+
+action:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: "warming_up"
+        sequence:
+          - service: input_text.set_value
+            target:
+              entity_id: !input stove_state_helper
+            data:
+              value: "Warming Up"
+      - conditions:
+          - condition: trigger
+            id: "burning"
+        sequence:
+          - service: input_text.set_value
+            target:
+              entity_id: !input stove_state_helper
+            data:
+              value: "Burning"
+      - conditions:
+          - condition: trigger
+            id: "cooling_down"
+        sequence:
+          - service: input_text.set_value
+            target:
+              entity_id: !input stove_state_helper
+            data:
+              value: "Cooling Down"
+      - conditions:
+          - condition: trigger
+            id: "off"
+        sequence:
+          - service: input_text.set_value
+            target:
+              entity_id: !input stove_state_helper
+            data:
+              value: "Off"
