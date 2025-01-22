@@ -39,10 +39,10 @@ blueprint:
           unit_of_measurement: "°C"
     stove_state_helper:
       name: Stove State Helper
-      description: An input_text or input_select to track the state.
+      description: An input_select to track the state.
       selector:
         entity:
-          domain: [input_text, input_select]
+          domain: input_select
 
 mode: restart
 max_exceeded: silent
@@ -71,35 +71,35 @@ action:
           - condition: trigger
             id: "warming_up"
         sequence:
-          - service: input_text.set_value
+          - service: input_select.select_option
             target:
               entity_id: !input stove_state_helper
             data:
-              value: "Warming Up"
+              option: "Warming Up"
       - conditions:
           - condition: trigger
             id: "burning"
         sequence:
-          - service: input_text.set_value
+          - service: input_select.select_option
             target:
               entity_id: !input stove_state_helper
             data:
-              value: "Burning"
+              option: "Burning"
       - conditions:
           - condition: trigger
             id: "cooling_down"
         sequence:
-          - service: input_text.set_value
+          - service: input_select.select_option
             target:
               entity_id: !input stove_state_helper
             data:
-              value: "Cooling Down"
+              option: "Cooling Down"
       - conditions:
           - condition: trigger
             id: "off"
         sequence:
-          - service: input_text.set_value
+          - service: input_select.select_option
             target:
               entity_id: !input stove_state_helper
             data:
-              value: "Off"
+              option: "Off"
