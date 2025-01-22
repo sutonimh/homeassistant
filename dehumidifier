@@ -1,0 +1,87 @@
+blueprint:
+  name: Dehumidifier Auto Control
+  description: Automates dehumidifier based on humidity levels and auto mode toggle.
+  domain: automation
+  input:
+    dehumidifier_switch:
+      name: Dehumidifier Switch
+      description: The switch that controls the dehumidifier.
+      selector:
+        entity:
+          domain: switch
+    humidity_sensor:
+      name: Humidity Sensor
+      description: The sensor that measures humidity.
+      selector:
+        entity:
+          domain: sensor
+          device_class: humidity
+    auto_mode:
+      name: Auto Mode Toggle
+      description: The boolean that enables or disables auto mode.
+      selector:
+        entity:
+          domain: input_boolean
+    high_threshold:
+      name: High Humidity Threshold
+      description: Humidity level above which the dehumidifier turns on.
+      default: 60
+      selector:
+        number:
+          min: 30
+          max: 80
+          unit_of_measurement: "%"
+    low_threshold:
+      name: Low Humidity Threshold
+      description: Humidity level below which the dehumidifier turns off.
+      default: 40
+      selector:
+        number:
+          min: 30
+          max: 80
+          unit_of_measurement: "%"
+
+automation:
+  - alias: Dehumidifier Auto Control
+    trigger:
+      - platform: state
+        entity_id: !input auto_mode
+        from: "off"
+        to: "on"
+      - platform: state
+        entity_id: !input auto_mode
+        from: "on"
+        to: "off"
+      - platform: numeric_state
+        entity_id: !input humidity_sensor
+        below: !input low_threshold
+    condition: []
+    action:
+      - choose:
+          - conditions:
+              - condition: state
+                entity_id: !input auto_mode
+                state: "on"
+              - condition: numeric_state
+                entity_id: !input humidity_sensor
+                above: !input high_threshold
+            sequence:
+              - service: switch.turn_on
+                target:
+                  entity_id: !input dehumidifier_switch
+                data: {}
+          - conditions:
+              - condition: numeric_state
+                entity_id: !input humidity_sensor
+                below: !input low_threshold
+            sequence:
+              - service: switch.turn_off
+                target:
+                  entity_id: !input dehumidifier_switch
+                data: {}
+        default:
+          - service: switch.turn_off
+            target:
+              entity_id: !input dehumidifier_switch
+            data: {}
+    mode: single
