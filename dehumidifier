@@ -41,7 +41,6 @@ blueprint:
           max: 80
           unit_of_measurement: "%"
 
-mode: single
 trigger:
   - platform: state
     entity_id: !input auto_mode
@@ -83,3 +82,4 @@ action:
         target:
           entity_id: !input dehumidifier_switch
         data: {}
+mode: single
