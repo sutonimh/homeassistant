@@ -44,6 +44,8 @@ blueprint:
         entity:
           domain: input_number
 
+mode: restart
+
 trigger:
   - platform: state
     entity_id: !input button_helper
@@ -55,14 +57,18 @@ variables:
     - !input scene_3
     - !input scene_4
     - !input scene_5
-  scenes_filtered: "{{ scenes | select('string') | list }}"
+  scenes_filtered: "{{ scenes | select('string') | list if scenes | select('string') | list | count > 0 else [] }}"
   scene_count: "{{ scenes_filtered | count }}"
 
 action:
   - variables:
       current_scene_index: >-
         {% set current = states(!input scene_index_helper) | int %}
+        {% if scene_count > 0 %}
         {{ (current + 1) % scene_count }}
+        {% else %}
+        0
+        {% endif %}
   - service: input_number.set_value
     target:
       entity_id: !input scene_index_helper
@@ -71,5 +77,3 @@ action:
   - service: scene.turn_on
     target:
       entity_id: "{{ scenes_filtered[current_scene_index] }}"
-
-mode: restart
