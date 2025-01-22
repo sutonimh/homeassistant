@@ -1,5 +1,5 @@
 blueprint:
-  name: Dehumidifier Control
+  name: Dehumidifier Control v2
   description: "Automatically turns dehumidifiers on and off based on humidity levels."
   domain: automation
   input:
@@ -51,6 +51,19 @@ blueprint:
           min: 0
           max: 100
           unit_of_measurement: "%"
+    start_time:
+      name: Start Time
+      description: "Time when the dehumidifiers can start running."
+      default: "08:00:00"
+      selector:
+        time: {}
+    stop_time:
+      name: Stop Time
+      description: "Time when the dehumidifiers should stop running."
+      default: "15:00:00"
+      selector:
+        time: {}
+
 triggers:
   - platform: numeric_state
     entity_id: !input humidity_sensor
@@ -61,23 +74,27 @@ triggers:
     below: !input humidity_low_threshold
     id: "humidity_low"
   - platform: time
-    at: "08:00:00"
+    at: !input start_time
     id: "start_time"
   - platform: time
-    at: "15:00:00"
+    at: !input stop_time
     id: "stop_time"
-conditions:
-  - condition: state
+  - platform: state
     entity_id: !input auto_mode
-    state: "on"
+    to: "off"
+    id: "auto_mode_off"
+
 actions:
   - choose:
       - conditions:
           - condition: trigger
             id: "humidity_high"
           - condition: time
-            after: "08:00:00"
-            before: "15:00:00"
+            after: !input start_time
+            before: !input stop_time
+          - condition: state
+            entity_id: !input auto_mode
+            state: "on"
         sequence:
           - service: switch.turn_on
             target:
@@ -94,8 +111,11 @@ actions:
           - condition: trigger
             id: "humidity_low"
           - condition: time
-            after: "08:00:00"
-            before: "15:00:00"
+            after: !input start_time
+            before: !input stop_time
+          - condition: state
+            entity_id: !input auto_mode
+            state: "on"
         sequence:
           - service: switch.turn_off
             target:
@@ -113,4 +133,15 @@ actions:
           - service: switch.turn_off
             target:
               entity_id: !input dehumidifier_switch_2
+      - conditions:
+          - condition: trigger
+            id: "auto_mode_off"
+        sequence:
+          - service: switch.turn_off
+            target:
+              entity_id: !input dehumidifier_switch_1
+          - service: switch.turn_off
+            target:
+              entity_id: !input dehumidifier_switch_2
+
 mode: single
