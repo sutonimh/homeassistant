@@ -1,86 +1,110 @@
 blueprint:
   name: Dehumidifier Auto Control
-  description: Automates dehumidifier based on humidity levels and auto mode toggle.
+  description: "Automatically turns dehumidifiers on and off based on humidity levels."
   domain: automation
   input:
-    dehumidifier_switch:
-      name: Dehumidifier Switch
-      description: The switch that controls the dehumidifier.
-      selector:
-        entity:
-          domain: switch
     humidity_sensor:
       name: Humidity Sensor
-      description: The sensor that measures humidity.
+      description: "The sensor that measures humidity."
       selector:
         entity:
           domain: sensor
-          device_class: humidity
-    auto_mode:
-      name: Auto Mode Toggle
-      description: The boolean that enables or disables auto mode.
+    dehumidifier_switch_1:
+      name: Dehumidifier Switch 1
+      description: "The first dehumidifier switch."
+      selector:
+        entity:
+          domain: switch
+    dehumidifier_switch_2:
+      name: Dehumidifier Switch 2
+      description: "The second dehumidifier switch."
+      selector:
+        entity:
+          domain: switch
+    hunter_bed_time:
+      name: Hunter Bed Time
+      description: "Boolean indicating if Hunter is in bed."
       selector:
         entity:
           domain: input_boolean
-    high_threshold:
+    humidity_high_threshold:
       name: High Humidity Threshold
-      description: Humidity level above which the dehumidifier turns on.
+      description: "The humidity level above which the dehumidifiers should turn on."
       default: 60
       selector:
         number:
-          min: 30
-          max: 80
+          min: 0
+          max: 100
           unit_of_measurement: "%"
-    low_threshold:
+    humidity_low_threshold:
       name: Low Humidity Threshold
-      description: Humidity level below which the dehumidifier turns off.
-      default: 40
+      description: "The humidity level below which the dehumidifiers should turn off."
+      default: 50
       selector:
         number:
-          min: 30
-          max: 80
+          min: 0
+          max: 100
           unit_of_measurement: "%"
-
-trigger:
-  - platform: state
-    entity_id: !input auto_mode
-    from: "off"
-    to: "on"
-  - platform: state
-    entity_id: !input auto_mode
-    from: "on"
-    to: "off"
+triggers:
   - platform: numeric_state
     entity_id: !input humidity_sensor
-    below: !input low_threshold
+    above: !input humidity_high_threshold
+    id: "humidity_high"
   - platform: numeric_state
     entity_id: !input humidity_sensor
-    above: !input high_threshold
-condition: []
-action:
+    below: !input humidity_low_threshold
+    id: "humidity_low"
+  - platform: time
+    at: "08:00:00"
+    id: "start_time"
+  - platform: time
+    at: "15:00:00"
+    id: "stop_time"
+conditions:
+  - condition: state
+    entity_id: automation.30_dehumidifier_auto_mode
+    state: "on"
+actions:
   - choose:
       - conditions:
-          - condition: state
-            entity_id: !input auto_mode
-            state: "on"
-          - condition: numeric_state
-            entity_id: !input humidity_sensor
-            above: !input high_threshold
+          - condition: trigger
+            id: "humidity_high"
+          - condition: time
+            after: "08:00:00"
+            before: "15:00:00"
         sequence:
           - service: switch.turn_on
             target:
-              entity_id: !input dehumidifier_switch
+              entity_id: !input dehumidifier_switch_1
+          - if:
+              - condition: state
+                entity_id: !input hunter_bed_time
+                state: "off"
+            then:
+              - service: switch.turn_on
+                target:
+                  entity_id: !input dehumidifier_switch_2
       - conditions:
-          - condition: numeric_state
-            entity_id: !input humidity_sensor
-            below: !input low_threshold
+          - condition: trigger
+            id: "humidity_low"
+          - condition: time
+            after: "08:00:00"
+            before: "15:00:00"
         sequence:
           - service: switch.turn_off
             target:
-              entity_id: !input dehumidifier_switch
-    default:
-      - service: switch.turn_off
-        target:
-          entity_id: !input dehumidifier_switch
-
+              entity_id: !input dehumidifier_switch_1
+          - service: switch.turn_off
+            target:
+              entity_id: !input dehumidifier_switch_2
+      - conditions:
+          - condition: trigger
+            id: "stop_time"
+        sequence:
+          - service: switch.turn_off
+            target:
+              entity_id: !input dehumidifier_switch_1
+          - service: switch.turn_off
+            target:
+              entity_id: !input dehumidifier_switch_2
 mode: single
