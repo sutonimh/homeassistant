@@ -1,5 +1,5 @@
 blueprint:
-  name: Media Player and Lights Control v3.0
+  name: Bed Time v3.0
   description: "Controls lights and loops media playback based on an input boolean."
   domain: automation
   input:
