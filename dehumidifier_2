@@ -1,5 +1,5 @@
 blueprint:
-  name: Dehumidifier Control v2
+  name: Dehumidifier Control v3
   description: "Automatically turns dehumidifiers on and off based on humidity levels."
   domain: automation
   input:
@@ -23,7 +23,7 @@ blueprint:
           domain: switch
     hunter_bed_time:
       name: Hunter Bed Time
-      description: "Boolean indicating if Hunter is in bed."
+      description: "Boolean indicating if second dehumidifier should run."
       selector:
         entity:
           domain: input_boolean
