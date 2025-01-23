@@ -114,7 +114,7 @@ action:
           - condition: trigger
             id: "cooling_down"
           - condition: template
-            value_template: "{{ states(!input stove_state_helper) == 'Burning' }}"
+            value_template: "{{ states('input_select.stove_state_helper') == 'Burning' }}"
         sequence:
           - service: input_select.select_option
             target:
@@ -126,7 +126,7 @@ action:
           - condition: trigger
             id: "off"
           - condition: template
-            value_template: "{{ states(!input stove_state_helper) == 'Cooling Down' }}"
+            value_template: "{{ states('input_select.stove_state_helper') == 'Cooling Down' }}"
         sequence:
           - service: input_select.select_option
             target:
