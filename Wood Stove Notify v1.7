@@ -1,0 +1,201 @@
+blueprint:
+  name: Wood Stove Notification v1.7
+  description: "Sends notifications about the wood stove, filtering by device location, time, and zone, with support for a second optional device."
+  domain: automation
+  input:
+    temperature_sensor:
+      name: Temperature Sensor
+      description: "Select the thermocouple sensor monitoring the wood stove."
+      selector:
+        entity:
+          domain: sensor
+          device_class: temperature
+    wood_stove_state:
+      name: Wood Stove State
+      description: "Select the input_text entity tracking the stove state."
+      selector:
+        entity:
+          domain: input_text
+    notification_target:
+      name: Notification Target
+      description: "Enter the notify service (e.g., notify.mobile_app_crux)."
+      default: "notify.mobile_app_crux"
+      selector:
+        text:
+    secondary_notification_target:
+      name: Secondary Notification Target
+      description: "Enter an optional second notify service."
+      default: ""
+      selector:
+        text:
+    notification_title:
+      name: Notification Title
+      description: "Title of the notification message."
+      default: "Wood Stove Alert"
+      selector:
+        text:
+    cooling_message:
+      name: Cooling Message
+      description: "Message sent when the stove enters cooling state."
+      default: "The stove is hungry. Feed him!"
+      selector:
+        text:
+    still_cooling_message:
+      name: Still Cooling Message
+      description: "Message sent if the stove remains in cooling state."
+      default: "The stove is still cooling. Check it!"
+      selector:
+        text:
+    high_temp_message:
+      name: High Temperature Message
+      description: "Message sent if the stove exceeds 400°F."
+      default: "Warning: The stove is over 400°F! Monitor it closely."
+      selector:
+        text:
+    cooling_time:
+      name: Cooling State Time
+      description: "Time the stove must be in cooling state before notifying."
+      default: 3
+      selector:
+        number:
+          min: 1
+          max: 60
+          unit_of_measurement: minutes
+    high_temp_threshold:
+      name: High Temperature Threshold
+      description: "Temperature above which a high temperature warning is sent."
+      default: 400
+      selector:
+        number:
+          min: 100
+          max: 1000
+          unit_of_measurement: "°F"
+    repeat_interval:
+      name: Repeat Notification Interval
+      description: "How often to repeat the cooling notification."
+      default: 15
+      selector:
+        number:
+          min: 5
+          max: 60
+          unit_of_measurement: minutes
+    notification_start_time:
+      name: Notification Start Time
+      description: "Time of day when notifications should start."
+      default: "08:00:00"
+      selector:
+        time:
+    notification_end_time:
+      name: Notification End Time
+      description: "Time of day when notifications should stop."
+      default: "22:00:00"
+      selector:
+        time:
+    device_tracker:
+      name: Device Tracker
+      description: "Select the device tracker to check location."
+      selector:
+        entity:
+          domain: device_tracker
+    required_zone:
+      name: Required Zone
+      description: "Select the zone the device must be in to receive notifications."
+      default: "home"
+      selector:
+        text:
+    secondary_device_tracker:
+      name: Secondary Device Tracker
+      description: "Select an optional second device tracker to check location."
+      selector:
+        entity:
+          domain: device_tracker
+    secondary_required_zone:
+      name: Secondary Required Zone
+      description: "Select the zone the second device must be in to receive notifications."
+      default: "home"
+      selector:
+        text:
+
+mode: single
+trigger:
+  - platform: state
+    entity_id: !input wood_stove_state
+    from: Burning
+    to: Cooling
+    for:
+      minutes: !input cooling_time
+  - platform: numeric_state
+    entity_id: !input temperature_sensor
+    above: !input high_temp_threshold
+    for:
+      minutes: 5
+
+action:
+  - condition: time
+    after: !input notification_start_time
+    before: !input notification_end_time
+  - condition: state
+    entity_id: !input device_tracker
+    state: !input required_zone
+  - choose:
+      - conditions:
+          - condition: state
+            entity_id: !input wood_stove_state
+            state: Cooling
+        sequence:
+          - service: !input notification_target
+            data:
+              title: !input notification_title
+              message: !input cooling_message
+          - condition: state
+            entity_id: !input secondary_device_tracker
+            state: !input secondary_required_zone
+          - service: !input secondary_notification_target
+            data:
+              title: !input notification_title
+              message: !input cooling_message
+
+          - repeat:
+              while:
+                - condition: state
+                  entity_id: !input wood_stove_state
+                  state: Cooling
+                - condition: time
+                  after: !input notification_start_time
+                  before: !input notification_end_time
+                - condition: state
+                  entity_id: !input device_tracker
+                  state: !input required_zone
+              sequence:
+                - delay:
+                    minutes: !input repeat_interval
+                - condition: state
+                  entity_id: !input wood_stove_state
+                  state: Cooling
+                - condition: time
+                  after: !input notification_start_time
+                  before: !input notification_end_time
+                - condition: state
+                  entity_id: !input device_tracker
+                  state: !input required_zone
+                - service: !input notification_target
+                  data:
+                    title: !input notification_title
+                    message: !input still_cooling_message
+                - condition: state
+                  entity_id: !input secondary_device_tracker
+                  state: !input secondary_required_zone
+                - service: !input secondary_notification_target
+                  data:
+                    title: !input notification_title
+                    message: !input still_cooling_message
+
+      - conditions:
+          - condition: numeric_state
+            entity_id: !input temperature_sensor
+            above: !input high_temp_threshold
+        sequence:
+          - service: !input notification_target
+            data:
+              title: !input notification_title
+              message: !input high_temp_message
