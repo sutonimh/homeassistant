@@ -25,7 +25,7 @@ blueprint:
     secondary_notification_target:
       name: Secondary Notification Target
       description: "Enter the second notify service."
-      default: "notify.mobile_app_secondary"
+      default: "notify.mobile_app_alicias_iphone"
       selector:
         text:
     notification_title:
@@ -91,6 +91,21 @@ blueprint:
       default: "22:00:00"
       selector:
         time:
+    device_tracker:
+      name: Device Tracker
+      description: "Select the primary device tracker to check location."
+      default: "device_tracker.crux"
+      selector:
+        entity:
+          domain: device_tracker
+    secondary_device_tracker:
+      name: Secondary Device Tracker
+      description: "Select the second device tracker."
+      default: "device_tracker.alicias_iphone"
+      selector:
+        entity:
+          domain: device_tracker
+          multiple: false
 
 mode: single
 trigger:
