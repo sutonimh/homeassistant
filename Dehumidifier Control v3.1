@@ -1,0 +1,187 @@
+blueprint:
+  name: Dehumidifier Control v3.1
+  description: "Automatically turns dehumidifiers on and off based on humidity levels."
+  domain: automation
+  input:
+    humidity_sensor:
+      name: Humidity Sensor
+      description: "The sensor that measures humidity."
+      selector:
+        entity:
+          domain: sensor
+    dehumidifier_switch_1:
+      name: Dehumidifier Switch 1
+      description: "The first dehumidifier switch."
+      selector:
+        entity:
+          domain: switch
+    dehumidifier_switch_2:
+      name: Dehumidifier Switch 2
+      description: "The second dehumidifier switch."
+      selector:
+        entity:
+          domain: switch
+    hunter_bed_time:
+      name: Hunter Bed Time
+      description: "Boolean indicating if second dehumidifier should run."
+      selector:
+        entity:
+          domain: input_boolean
+    auto_mode:
+      name: Auto Mode
+      description: "Boolean indicating if the dehumidifier automation is active."
+      selector:
+        entity:
+          domain: input_boolean
+    humidity_high_threshold:
+      name: High Humidity Threshold
+      description: "The humidity level above which the dehumidifiers should turn on."
+      default: 60
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+    humidity_low_threshold:
+      name: Low Humidity Threshold
+      description: "The humidity level below which the dehumidifiers should turn off."
+      default: 50
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+    start_time:
+      name: Start Time
+      description: "Time when the dehumidifiers can start running."
+      default: "08:00:00"
+      selector:
+        time: {}
+    stop_time:
+      name: Stop Time
+      description: "Time when the dehumidifiers should stop running."
+      default: "15:00:00"
+      selector:
+        time: {}
+
+triggers:
+  - platform: numeric_state
+    entity_id: !input humidity_sensor
+    above: !input humidity_high_threshold
+    id: "humidity_high"
+  - platform: numeric_state
+    entity_id: !input humidity_sensor
+    below: !input humidity_low_threshold
+    id: "humidity_low"
+  - platform: time
+    at: !input start_time
+    id: "start_time"
+  - platform: time
+    at: !input stop_time
+    id: "stop_time"
+  - platform: state
+    entity_id: !input auto_mode
+    to: "off"
+    id: "auto_mode_off"
+  - platform: state
+    entity_id: !input hunter_bed_time
+    to: "on"
+    id: "hunter_bed_time_on"
+
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: "start_time"
+          - condition: numeric_state
+            entity_id: !input humidity_sensor
+            above: !input humidity_high_threshold
+          - condition: state
+            entity_id: !input auto_mode
+            state: "on"
+        sequence:
+          - service: switch.turn_on
+            target:
+              entity_id: !input dehumidifier_switch_1
+          - if:
+              - condition: state
+                entity_id: !input hunter_bed_time
+                state: "off"
+            then:
+              - service: switch.turn_on
+                target:
+                  entity_id: !input dehumidifier_switch_2
+
+      - conditions:
+          - condition: trigger
+            id: "humidity_high"
+          - condition: time
+            after: !input start_time
+            before: !input stop_time
+          - condition: state
+            entity_id: !input auto_mode
+            state: "on"
+          - condition: state
+            entity_id: !input dehumidifier_switch_1
+            state: "off"
+        sequence:
+          - service: switch.turn_on
+            target:
+              entity_id: !input dehumidifier_switch_1
+          - if:
+              - condition: state
+                entity_id: !input hunter_bed_time
+                state: "off"
+              - condition: state
+                entity_id: !input dehumidifier_switch_2
+                state: "off"
+            then:
+              - service: switch.turn_on
+                target:
+                  entity_id: !input dehumidifier_switch_2
+
+      - conditions:
+          - condition: trigger
+            id: "humidity_low"
+          - condition: state
+            entity_id: !input dehumidifier_switch_1
+            state: "on"
+        sequence:
+          - service: switch.turn_off
+            target:
+              entity_id: !input dehumidifier_switch_1
+          - service: switch.turn_off
+            target:
+              entity_id: !input dehumidifier_switch_2
+
+      - conditions:
+          - condition: trigger
+            id: "stop_time"
+        sequence:
+          - service: switch.turn_off
+            target:
+              entity_id: !input dehumidifier_switch_1
+          - service: switch.turn_off
+            target:
+              entity_id: !input dehumidifier_switch_2
+
+      - conditions:
+          - condition: trigger
+            id: "auto_mode_off"
+        sequence:
+          - service: switch.turn_off
+            target:
+              entity_id: !input dehumidifier_switch_1
+          - service: switch.turn_off
+            target:
+              entity_id: !input dehumidifier_switch_2
+
+      - conditions:
+          - condition: trigger
+            id: "hunter_bed_time_on"
+        sequence:
+          - service: switch.turn_off
+            target:
+              entity_id: !input dehumidifier_switch_2
+
+mode: restart
