@@ -55,15 +55,6 @@ blueprint:
           min: 1
           max: 60
           unit_of_measurement: minutes
-    high_temp_threshold:
-      name: High Temperature Threshold
-      description: "Temperature above which a high temperature warning is sent."
-      default: 400
-      selector:
-        number:
-          min: 100
-          max: 1000
-          unit_of_measurement: "°F"
     repeat_interval:
       name: Follow-up Cooling Notification Delay
       description: "Time after the first cooling notification to send a follow-up."
@@ -73,6 +64,15 @@ blueprint:
           min: 5
           max: 60
           unit_of_measurement: minutes
+    high_temp_threshold:
+      name: High Temperature Threshold
+      description: "Temperature above which a high temperature warning is sent."
+      default: 400
+      selector:
+        number:
+          min: 100
+          max: 1000
+          unit_of_measurement: "°F"
     high_temp_repeat_interval:
       name: High Temperature Repeat Notification Delay
       description: "Interval (in minutes) between repeated high temperature notifications while the temperature remains above the threshold."
