@@ -28,7 +28,6 @@ blueprint:
       name: Secondary Notification Target
       description: "Optional: Enter the notify service for the secondary device (if any)."
       default: ""
-      required: false
       selector:
         text:
     notification_title:
@@ -123,7 +122,6 @@ blueprint:
       name: Secondary Device Tracker
       description: "Optional: Select a second device tracker to check location for cooling notifications. Cooling notifications are sent only if this device is at 'home'."
       default: ""
-      required: false
       selector:
         entity:
           domain: device_tracker
@@ -168,7 +166,7 @@ action:
           - choose:
               - conditions:
                   - condition: template
-                    value_template: "{{ !input.device_tracker_secondary != '' and is_state(!input.device_tracker_secondary, 'home') }}"
+                    value_template: "{{ (device_tracker_secondary != '') and is_state(device_tracker_secondary, 'home') }}"
                 sequence:
                   - service: !input notification_target_secondary
                     data:
@@ -195,7 +193,7 @@ action:
           - choose:
               - conditions:
                   - condition: template
-                    value_template: "{{ !input.device_tracker_secondary != '' and is_state(!input.device_tracker_secondary, 'home') }}"
+                    value_template: "{{ (device_tracker_secondary != '') and is_state(device_tracker_secondary, 'home') }}"
                 sequence:
                   - service: !input notification_target_secondary
                     data:
@@ -215,7 +213,7 @@ action:
           - choose:
               - conditions:
                   - condition: template
-                    value_template: "{{ !input.notification_target_secondary != '' }}"
+                    value_template: "{{ (notification_target_secondary != '') }}"
                 sequence:
                   - service: !input notification_target_secondary
                     data:
@@ -237,7 +235,7 @@ action:
                 - choose:
                     - conditions:
                         - condition: template
-                          value_template: "{{ !input.notification_target_secondary != '' }}"
+                          value_template: "{{ (notification_target_secondary != '') }}"
                       sequence:
                         - service: !input notification_target_secondary
                           data:
