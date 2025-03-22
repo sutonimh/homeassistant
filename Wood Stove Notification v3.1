@@ -1,0 +1,188 @@
+blueprint:
+  name: Wood Stove Notification v3.1
+  description: "Sends parallel notifications for wood stove states, including repeated high temperature alerts while conditions persist."
+  domain: automation
+  input:
+    temperature_sensor:
+      name: Temperature Sensor
+      description: "Select the thermocouple sensor monitoring the wood stove."
+      selector:
+        entity:
+          domain: sensor
+          device_class: temperature
+    wood_stove_state:
+      name: Wood Stove State
+      description: "Select the input_text entity tracking the stove state."
+      selector:
+        entity:
+          domain: input_text
+    notification_target:
+      name: Notification Target
+      description: "Enter the primary notify service."
+      default: "notify.mobile_app_crux"
+      selector:
+        text:
+    notification_title:
+      name: Notification Title
+      description: "Title of the notification message."
+      default: "Wood Stove Alert"
+      selector:
+        text:
+    cooling_message:
+      name: Cooling Message
+      description: "Message sent when the stove enters cooling state."
+      default: "The stove is hungry. Feed him!"
+      selector:
+        text:
+    still_cooling_message:
+      name: Still Cooling Message
+      description: "Message sent after the follow-up delay if the stove is still cooling."
+      default: "The stove is still cooling. Check it!"
+      selector:
+        text:
+    high_temp_message:
+      name: High Temperature Message
+      description: "Message sent if the stove exceeds the high temperature threshold."
+      default: "Warning: The stove is over 400°F! Monitor it closely."
+      selector:
+        text:
+    cooling_time:
+      name: Cooling State Time
+      description: "Time the stove must be in cooling state before notifying."
+      default: 3
+      selector:
+        number:
+          min: 1
+          max: 60
+          unit_of_measurement: minutes
+    repeat_interval:
+      name: Follow-up Cooling Notification Delay
+      description: "Time after the first cooling notification to send a follow-up."
+      default: 30
+      selector:
+        number:
+          min: 5
+          max: 60
+          unit_of_measurement: minutes
+    high_temp_threshold:
+      name: High Temperature Threshold
+      description: "Temperature above which a high temperature warning is sent."
+      default: 400
+      selector:
+        number:
+          min: 100
+          max: 1000
+          unit_of_measurement: "°F"
+    high_temp_repeat_interval:
+      name: High Temperature Repeat Notification Delay
+      description: "Interval (in minutes) between repeated high temperature notifications while the temperature remains above the threshold."
+      default: 15
+      selector:
+        number:
+          min: 1
+          max: 60
+          unit_of_measurement: minutes
+    high_temp_delay:
+      name: High Temperature Duration
+      description: "Time (in minutes) the temperature must be above the threshold before sending the initial high temperature alert."
+      default: 3
+      selector:
+        number:
+          min: 0
+          max: 60
+          unit_of_measurement: minutes
+    notification_start_time:
+      name: Notification Start Time
+      description: "Time of day when cooling notifications should start."
+      default: "08:00:00"
+      selector:
+        time:
+    notification_end_time:
+      name: Notification End Time
+      description: "Time of day when cooling notifications should stop."
+      default: "22:00:00"
+      selector:
+        time:
+    device_tracker:
+      name: Device Tracker
+      description: "Select the primary device tracker to check location. Cooling notifications are sent only if the device is at 'home'."
+      default: "device_tracker.crux"
+      selector:
+        entity:
+          domain: device_tracker
+
+mode: parallel
+trigger:
+  - platform: state
+    entity_id: !input wood_stove_state
+    from: Burning
+    to: Cooling
+    for:
+      minutes: !input cooling_time
+    id: cooling_trigger
+  - platform: numeric_state
+    entity_id: !input temperature_sensor
+    above: !input high_temp_threshold
+    for:
+      minutes: !input high_temp_delay
+    id: high_temp_trigger
+
+action:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: cooling_trigger
+          - condition: time
+            after: !input notification_start_time
+            before: !input notification_end_time
+          - condition: state
+            entity_id: !input device_tracker
+            state: "home"
+        sequence:
+          - service: !input notification_target
+            data:
+              title: !input notification_title
+              message: !input cooling_message
+          - wait_for_trigger:
+              - platform: state
+                entity_id: !input wood_stove_state
+                from: Cooling
+            timeout:
+              minutes: !input repeat_interval
+            continue_on_timeout: true
+          - condition: state
+            entity_id: !input wood_stove_state
+            state: Cooling
+          - service: !input notification_target
+            data:
+              title: !input notification_title
+              message: !input still_cooling_message
+
+      - conditions:
+          - condition: trigger
+            id: high_temp_trigger
+        sequence:
+          - service: !input notification_target
+            data:
+              title: !input notification_title
+              message: !input high_temp_message
+          - repeat:
+              while:
+                - condition: numeric_state
+                  entity_id: !input temperature_sensor
+                  above: !input high_temp_threshold
+              sequence:
+                - wait_for_trigger:
+                    - platform: numeric_state
+                      entity_id: !input temperature_sensor
+                      below: !input high_temp_threshold
+                  timeout:
+                    minutes: !input high_temp_repeat_interval
+                  continue_on_timeout: true
+                - condition: numeric_state
+                  entity_id: !input temperature_sensor
+                  above: !input high_temp_threshold
+                - service: !input notification_target
+                  data:
+                    title: !input notification_title
+                    message: !input high_temp_message
