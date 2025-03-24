@@ -1,0 +1,203 @@
+blueprint:
+  name: Wood Stove Notification v4.1
+  description: "Sends notifications for two wood stoves and two users, including repeated high temperature alerts while conditions persist."
+  domain: automation
+  input:
+    stove_1_name:
+      name: Stove 1 Name
+      default: "Stove 1"
+      selector:
+        text:
+    stove_1_temperature_sensor:
+      name: Stove 1 Temperature Sensor
+      selector:
+        entity:
+          domain: sensor
+          device_class: temperature
+    stove_1_state:
+      name: Stove 1 State Entity
+      selector:
+        entity:
+          domain: input_text
+
+    stove_2_name:
+      name: Stove 2 Name
+      default: "Stove 2"
+      selector:
+        text:
+    stove_2_temperature_sensor:
+      name: Stove 2 Temperature Sensor
+      selector:
+        entity:
+          domain: sensor
+          device_class: temperature
+    stove_2_state:
+      name: Stove 2 State Entity
+      selector:
+        entity:
+          domain: input_text
+
+    user_1_notification_target:
+      name: User 1 Notification Target
+      selector:
+        text:
+    user_1_device_tracker:
+      name: User 1 Device Tracker
+      selector:
+        entity:
+          domain: device_tracker
+
+    user_2_notification_target:
+      name: User 2 Notification Target
+      selector:
+        text:
+    user_2_device_tracker:
+      name: User 2 Device Tracker
+      selector:
+        entity:
+          domain: device_tracker
+
+    notification_title:
+      name: Notification Title
+      default: "Wood Stove Alert"
+      selector:
+        text:
+
+    cooling_message:
+      name: Cooling Message
+      default: "The stove is hungry. Feed him!"
+      selector:
+        text:
+    still_cooling_message:
+      name: Still Cooling Message
+      default: "The stove is still cooling. Check it!"
+      selector:
+        text:
+    high_temp_message:
+      name: High Temperature Message
+      default: "Warning: The stove is over 400°F! Monitor it closely."
+      selector:
+        text:
+
+    cooling_time:
+      name: Cooling State Time
+      default: 3
+      selector:
+        number:
+          min: 1
+          max: 60
+          unit_of_measurement: minutes
+
+    repeat_interval:
+      name: Follow-up Cooling Notification Delay
+      default: 30
+      selector:
+        number:
+          min: 5
+          max: 60
+          unit_of_measurement: minutes
+
+    high_temp_threshold:
+      name: High Temperature Threshold
+      default: 400
+      selector:
+        number:
+          min: 100
+          max: 1000
+          unit_of_measurement: "°F"
+
+    high_temp_repeat_interval:
+      name: High Temperature Repeat Notification Delay
+      default: 15
+      selector:
+        number:
+          min: 1
+          max: 60
+          unit_of_measurement: minutes
+
+    high_temp_delay:
+      name: High Temperature Duration
+      default: 3
+      selector:
+        number:
+          min: 0
+          max: 60
+          unit_of_measurement: minutes
+
+mode: parallel
+trigger:
+  - platform: state
+    entity_id:
+      - !input stove_1_state
+      - !input stove_2_state
+    from: Burning
+    to: Cooling
+    for:
+      minutes: !input cooling_time
+    id: cooling_trigger
+
+  - platform: numeric_state
+    entity_id:
+      - !input stove_1_temperature_sensor
+      - !input stove_2_temperature_sensor
+    above: !input high_temp_threshold
+    for:
+      minutes: !input high_temp_delay
+    id: high_temp_trigger
+
+action:
+  - variables:
+      stove_id: "{{ trigger.entity_id }}"
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: cooling_trigger
+        sequence:
+          - choose:
+              - conditions: "{{ stove_id == states[inputs.stove_1_state].entity_id }}"
+                sequence:
+                  - condition: state
+                    entity_id: !input user_1_device_tracker
+                    state: "home"
+                  - service: !input user_1_notification_target
+                    data:
+                      title: !input notification_title
+                      message: "{{ inputs.stove_1_name }}: {{ inputs.cooling_message }}"
+                  - wait_for_trigger:
+                      - platform: state
+                        entity_id: !input stove_1_state
+                        from: Cooling
+                    timeout:
+                      minutes: !input repeat_interval
+                    continue_on_timeout: true
+                  - condition: state
+                    entity_id: !input stove_1_state
+                    state: Cooling
+                  - service: !input user_1_notification_target
+                    data:
+                      title: !input notification_title
+                      message: "{{ inputs.stove_1_name }}: {{ inputs.still_cooling_message }}"
+
+              - conditions: "{{ stove_id == states[inputs.stove_2_state].entity_id }}"
+                sequence:
+                  - condition: state
+                    entity_id: !input user_2_device_tracker
+                    state: "home"
+                  - service: !input user_2_notification_target
+                    data:
+                      title: !input notification_title
+                      message: "{{ inputs.stove_2_name }}: {{ inputs.cooling_message }}"
+                  - wait_for_trigger:
+                      - platform: state
+                        entity_id: !input stove_2_state
+                        from: Cooling
+                    timeout:
+                      minutes: !input repeat_interval
+                    continue_on_timeout: true
+                  - condition: state
+                    entity_id: !input stove_2_state
+                    state: Cooling
+                  - service: !input user_2_notification_target
+                    data:
+                      title: !input notification_title
+                      message: "{{ inputs.stove_2_name }}: {{ inputs.still_cooling_message }}"
