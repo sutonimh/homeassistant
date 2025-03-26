@@ -1,0 +1,82 @@
+blueprint:
+  name: Relative Attic Fan Control
+  description: >
+    Run an attic fan based on the difference between the attic and outside temperatures.
+    The fan turns on when the attic is above a minimum temperature and the temperature delta 
+    (attic - outside) exceeds a user-set threshold, and turns off once a target low attic temperature is reached.
+  domain: automation
+  input:
+    attic_sensor:
+      name: Attic Temperature Sensor
+      description: The sensor that measures the attic temperature.
+      selector:
+        entity:
+          domain: sensor
+    outside_sensor:
+      name: Outside Temperature Sensor
+      description: The sensor that measures the outside temperature.
+      selector:
+        entity:
+          domain: sensor
+    fan_switch:
+      name: Attic Fan Switch
+      description: The switch that controls the attic fan.
+      selector:
+        entity:
+          domain: switch
+    delta_threshold:
+      name: Temperature Delta Threshold
+      description: "The minimum difference (°F) between attic and outside required to run the fan."
+      default: 5
+      selector:
+        number:
+          min: 0
+          max: 50
+          unit_of_measurement: "°F"
+    min_attic_temp:
+      name: Minimum Attic Temperature to Run Fan
+      description: "The fan will not turn on if the attic temperature is below this value."
+      default: 60
+      selector:
+        number:
+          min: 0
+          max: 150
+          unit_of_measurement: "°F"
+    target_low_temp:
+      name: Target Low Attic Temperature
+      description: "If the attic temperature falls to or below this value, the fan turns off."
+      default: 60
+      selector:
+        number:
+          min: 0
+          max: 150
+          unit_of_measurement: "°F"
+
+trigger:
+  - platform: state
+    entity_id:
+      - !input attic_sensor
+      - !input outside_sensor
+
+action:
+  - choose:
+      - conditions:
+          - condition: numeric_state
+            entity_id: !input attic_sensor
+            above: !input min_attic_temp
+          - condition: template
+            value_template: >
+              {{ (states(blueprint.inputs.attic_sensor) | float) - (states(blueprint.inputs.outside_sensor) | float) > blueprint.inputs.delta_threshold }}
+        sequence:
+          - service: switch.turn_on
+            target:
+              entity_id: !input fan_switch
+      - conditions:
+          - condition: numeric_state
+            entity_id: !input attic_sensor
+            below: !input target_low_temp
+        sequence:
+          - service: switch.turn_off
+            target:
+              entity_id: !input fan_switch
+mode: single
