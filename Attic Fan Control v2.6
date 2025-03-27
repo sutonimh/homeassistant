@@ -1,0 +1,120 @@
+blueprint:
+  name: Attic Fan Control
+  description: >
+    Attic Fan Control v2.0 – Run an attic fan based on the difference between the attic and outside temperatures.
+    The fan turns on when the attic temperature is above a target temperature and the temperature delta
+    (attic - outside) exceeds a user-set threshold, and turns off once the attic cools to or below the target.
+    This automation is active during a specified time window, respects a cooldown period,
+    and can be manually overridden.
+  domain: automation
+  input:
+    attic_sensor:
+      name: Attic Temperature Sensor
+      description: The sensor that measures the attic temperature.
+      selector:
+        entity:
+          domain: sensor
+    outside_sensor:
+      name: Outside Temperature Sensor
+      description: The sensor that measures the outside temperature.
+      selector:
+        entity:
+          domain: sensor
+    fan_switch:
+      name: Attic Fan Switch
+      description: The switch that controls the attic fan.
+      selector:
+        entity:
+          domain: switch
+    delta_threshold:
+      name: Temperature Delta Threshold
+      description: "The minimum difference (°F) between attic and outside required to run the fan."
+      default: 5
+      selector:
+        number:
+          min: 0
+          max: 50
+          unit_of_measurement: "°F"
+    target_temp:
+      name: Target Attic Temperature
+      description: >
+        The attic temperature threshold. The fan turns on only if the attic is above this value and the
+        delta condition is met. The fan turns off once the attic cools to or below this temperature.
+      default: 60
+      selector:
+        number:
+          min: 0
+          max: 150
+          unit_of_measurement: "°F"
+    start_time:
+      name: Start Time
+      description: "Time of day after which the automation is active."
+      default: "07:00:00"
+      selector:
+        time: {}
+    stop_time:
+      name: Stop Time
+      description: "Time of day before which the automation is active."
+      default: "20:00:00"
+      selector:
+        time: {}
+    cooldown:
+      name: Cooldown Period (minutes)
+      description: "The period after a fan state change during which the automation won't run again."
+      default: 30
+      selector:
+        number:
+          min: 0
+          max: 120
+          unit_of_measurement: "minutes"
+    override:
+      name: Override Control
+      description: "When enabled, the automation will not control the fan."
+      default: false
+      selector:
+        boolean: {}
+
+trigger:
+  - platform: state
+    entity_id:
+      - !input attic_sensor
+      - !input outside_sensor
+
+condition:
+  - condition: time
+    after: !input start_time
+    before: !input stop_time
+  - condition: template
+    value_template: "{{ not inputs.override }}"
+  - condition: template
+    value_template: >
+      {% set cd = inputs.cooldown | int %}
+      {% set last = as_timestamp(states(inputs.fan_switch).last_changed) %}
+      {% if last is none %}
+        true
+      {% else %}
+        {{ (as_timestamp(now()) - last) > (cd * 60) }}
+      {% endif %}
+
+action:
+  - choose:
+      - conditions:
+          - condition: numeric_state
+            entity_id: !input attic_sensor
+            above: !input target_temp
+          - condition: template
+            value_template: >
+              {{ (states(inputs.attic_sensor) | float) - (states(inputs.outside_sensor) | float) > inputs.delta_threshold }}
+        sequence:
+          - service: switch.turn_on
+            target:
+              entity_id: !input fan_switch
+      - conditions:
+          - condition: numeric_state
+            entity_id: !input attic_sensor
+            below: !input target_temp
+        sequence:
+          - service: switch.turn_off
+            target:
+              entity_id: !input fan_switch
+mode: single
