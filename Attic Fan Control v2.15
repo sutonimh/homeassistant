@@ -1,0 +1,78 @@
+blueprint:
+  name: Attic Fan Control
+  description: >
+    Attic Fan Control v2.0 – This blueprint controls an attic fan relative to the attic and outside temperatures.
+    The fan turns on when the attic temperature is above a target and the difference (attic minus outside)
+    exceeds a threshold, and turns off when the attic cools below the target or when the stop time is reached.
+    A cooldown period prevents rapid cycling and a manual override is available.
+  domain: automation
+  input:
+    attic_sensor:
+      name: Attic Temperature Sensor
+      description: The sensor that measures the attic temperature.
+      selector:
+        entity:
+          domain: sensor
+    outside_sensor:
+      name: Outside Temperature Sensor
+      description: The sensor that measures the outside temperature.
+      selector:
+        entity:
+          domain: sensor
+    fan_switch:
+      name: Attic Fan Switch
+      description: The switch that controls the attic fan.
+      selector:
+        entity:
+          domain: switch
+    delta_threshold:
+      name: Temperature Delta Threshold
+      description: "Minimum difference (°F) between attic and outside required to run the fan."
+      default: 5
+      selector:
+        number:
+          min: 0
+          max: 50
+          unit_of_measurement: "°F"
+    target_temp:
+      name: Target Attic Temperature
+      description: >
+        The attic temperature threshold. The fan turns on if the attic is above this value (and the delta condition is met),
+        and turns off if it falls below.
+      default: 60
+      selector:
+        number:
+          min: 0
+          max: 150
+          unit_of_measurement: "°F"
+    start_time:
+      name: Start Time
+      description: "Time after which the fan may run based on temperature conditions."
+      default: "07:00:00"
+      selector:
+        time: {}
+    stop_time:
+      name: Stop Time
+      description: "Time at which the fan is forced off."
+      default: "20:00:00"
+      selector:
+        time: {}
+    cooldown_minutes:
+      name: Cooldown Period (minutes)
+      description: "Minutes to wait after a fan state change before allowing another change."
+      default: 30
+      selector:
+        number:
+          min: 0
+          max: 120
+          unit_of_measurement: "minutes"
+    override:
+      name: Override Control
+      description: "When enabled, the automation will not control the fan."
+      default: false
+      selector:
+        boolean: {}
+
+variables:
+  cd: !input cooldown_minutes
+  fs: !
