@@ -1,0 +1,145 @@
+blueprint:
+  name: Attic Fan Control
+  description: >
+    Attic Fan Control v2.13 – This blueprint controls an attic fan relative to the attic and outside temperatures.
+    The fan turns on when the attic temperature is above a target and the difference (attic minus outside)
+    exceeds a threshold, and turns off when the attic cools below the target or when the stop time is reached.
+    A cooldown period prevents rapid cycling and a manual override is available.
+  domain: automation
+  input:
+    attic_sensor:
+      name: Attic Temperature Sensor
+      description: The sensor that measures the attic temperature.
+      selector:
+        entity:
+          domain: sensor
+    outside_sensor:
+      name: Outside Temperature Sensor
+      description: The sensor that measures the outside temperature.
+      selector:
+        entity:
+          domain: sensor
+    fan_switch:
+      name: Attic Fan Switch
+      description: The switch that controls the attic fan.
+      selector:
+        entity:
+          domain: switch
+    delta_threshold:
+      name: Temperature Delta Threshold
+      description: "Minimum difference (°F) between attic and outside required to run the fan."
+      default: 5
+      selector:
+        number:
+          min: 0
+          max: 50
+          unit_of_measurement: "°F"
+    target_temp:
+      name: Target Attic Temperature
+      description: >
+        The attic temperature threshold. The fan turns on if the attic is above this value (and the delta condition is met),
+        and turns off if it falls below.
+      default: 60
+      selector:
+        number:
+          min: 0
+          max: 150
+          unit_of_measurement: "°F"
+    start_time:
+      name: Start Time
+      description: "Time after which the fan may run based on temperature conditions."
+      default: "07:00:00"
+      selector:
+        time: {}
+    stop_time:
+      name: Stop Time
+      description: "Time at which the fan is forced off."
+      default: "20:00:00"
+      selector:
+        time: {}
+    cooldown_minutes:
+      name: Cooldown Period (minutes)
+      description: "Minutes to wait after a fan state change before allowing another change."
+      default: 30
+      selector:
+        number:
+          min: 0
+          max: 120
+          unit_of_measurement: "minutes"
+    override:
+      name: Override Control
+      description: "When enabled, the automation will not control the fan."
+      default: false
+      selector:
+        boolean: {}
+
+variables:
+  cd: !input cooldown_minutes
+  fs: !input fan_switch
+  dt: !input delta_threshold
+  st: !input start_time
+  sp: !input stop_time
+
+trigger:
+  - platform: state
+    entity_id:
+      - !input attic_sensor
+      - !input outside_sensor
+  - platform: time
+    at: !input stop_time
+    id: stop_trigger
+
+condition:
+  - condition: template
+    value_template: "{{ not override }}"
+  - condition: template
+    value_template: >
+      {% set fan_state = states(fs) %}
+      {% if not fan_state.last_changed %}
+        true
+      {% else %}
+        {% set last = as_timestamp(fan_state.last_changed) %}
+        {{ (as_timestamp(now()) - last) > (cd | int * 60) }}
+      {% endif %}
+
+action:
+  - choose:
+      # Branch to force the fan off at stop_time
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.platform == 'time' and trigger.id == 'stop_trigger' }}"
+        sequence:
+          - service: switch.turn_off
+            target:
+              entity_id: !input fan_switch
+
+      # Branch for sensor-based triggers during the active window
+      - conditions:
+          - condition: template
+            value_template: >
+              {% set now_time = now().time() %}
+              {{ now_time >= st | strptime('%H:%M:%S').time() and now_time < sp | strptime('%H:%M:%S').time() }}
+          - condition: numeric_state
+            entity_id: !input attic_sensor
+            above: !input target_temp
+          - condition: template
+            value_template: >
+              {{ (states(attic_sensor) | float) - (states(outside_sensor) | float) > dt }}
+        sequence:
+          - service: switch.turn_on
+            target:
+              entity_id: !input fan_switch
+
+      - conditions:
+          - condition: template
+            value_template: >
+              {% set now_time = now().time() %}
+              {{ now_time >= st | strptime('%H:%M:%S').time() and now_time < sp | strptime('%H:%M:%S').time() }}
+          - condition: numeric_state
+            entity_id: !input attic_sensor
+            below: !input target_temp
+        sequence:
+          - service: switch.turn_off
+            target:
+              entity_id: !input fan_switch
+mode: single
